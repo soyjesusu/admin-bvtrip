@@ -82,16 +82,16 @@
     </div>
   </div>
 
-  <script>const firebaseConfig = {
-  apiKey: "AIzaSyBROavzajg4VH80lsQVhvDo8sRsvrY6veA",
-  authDomain: "bv-trip.firebaseapp.com",
-  projectId: "bv-trip",
-  storageBucket: "bv-trip.firebasestorage.app",
-  messagingSenderId: "668569482252",
-  appId: "1:668569482252:web:4695f65a62f0363ec22a29"
-};</script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBROavzajg4VH80lsQVhvDo8sRsvrY6veA",
+      authDomain: "bv-trip.firebaseapp.com",
+      projectId: "bv-trip",
+      storageBucket: "bv-trip.firebasestorage.app",
+      messagingSenderId: "668569482252",
+      appId: "1:668569482252:web:4695f65a62f0363ec22a29"
+    };
 
-    // Reemplaza la configuración anterior si tienes las claves exactas en tu index.html previo
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
@@ -245,7 +245,6 @@
       }
 
       conductoresCache.forEach(c => {
-        // Filtrar viajes completados de este conductor
         const viajesDelConductor = viajesCache.filter(v => 
           (v.conductorId === c.id || v.conductor === c.nombre) && v.estado === 'Completado'
         );

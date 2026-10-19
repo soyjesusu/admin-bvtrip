@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Bv-trip · Panel</title>
+<style>
+:root{--bg:#f1f4f2;--card:#fff;--ink:#12201a;--muted:#5b6a63;--line:#e1e7e3;--g:#176a45;--gsoft:#e2f0e8;--bad:#b3341f;--warn:#fff4d6}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1612;--card:#17221c;--ink:#e9f1ec;--muted:#9fb0a6;--line:#273630;--g:#2f9a6b;--gsoft:#1d3328;--bad:#ff8f7a;--warn:#3a3213}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,sans-serif;line-height:1.4}
+.w{max-width:760px;margin:0 auto;padding:14px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+h1{font-size:1.25rem;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+input,select{width:100%;padding:11px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--g);color:#fff}
+button.s{background:var(--gsoft);color:var(--g)}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button{flex:1;background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.tabs button.on{background:var(--g);color:#fff;border-color:var(--g)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1;min-width:120px}
+.hd{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
+.hd b{font-size:1.05rem}
+.tag{font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--gsoft);color:var(--g)}
+.pas{border-top:1px solid var(--line);padding:8px 0;font-size:.92rem}
+.pas small{display:block;color:var(--muted)}
+.warn{background:var(--warn);border-radius:10px;padding:8px 10px;margin:8px 0;font-size:.88rem;font-weight:700}
+.err{color:var(--bad);font-weight:700;margin:8px 0 0}
+.m{color:var(--muted);font-size:.9rem}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="w">
+  <header><h1>🚐 Bv-trip · Panel</h1><button class="s hide" id="salir">Salir</button></header>
+
+  <div class="card" id="login">
+    <h2 style="margin-top:0;font-size:1.1rem">Entrar</h2>
+    <div class="row"><input id="em" type="email" placeholder="Correo" autocomplete="username"><input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password"></div>
+    <p class="err hide" id="lerr"></p>
+    <p><button id="entrar">Entrar</button></p>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="tabs"><button id="t1" class="on">Salidas</button><button id="t2">Conductores</button><button id="rec" style="flex:0 0 auto">↻</button></div>
+    <div id="v1">
+      <div class="card row"><div><label class="m" for="df">Fecha</label><input id="df" type="date"></div><div style="flex:0 0 auto;align-self:end"><button class="s" id="todas">Ver todas</button></div></div>
+      <div id="salidas"></div>
+    </div>
+    <div id="v2" class="hide"><div id="conds"></div></div>
+    <p class="err hide" id="gerr"></p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyBROavzajg4VH80lsQVhvDo8sRsvrY6veA",
+  authDomain: "bv-trip.firebaseapp.com",
+  projectId: "bv-trip",
+  storageBucket: "bv-trip.firebasestorage.app",
+  messagingSenderId: "668569482252",
+  appId: "1:668569482252:web:4695f65a62f0363ec22a29"
+});
+const auth = getAuth(app), db = getFirestore(app);
+const $ = id => document.getElementById(id);
+function h(t, a, ...k){
+  const e = document.createElement(t);
+  for (const x in (a||{})){ if (x === "class") e.className = a[x]; else if (x.startsWith("on")) e.addEventListener(x.slice(2), a[x]); else e.setAttribute(x, a[x]); }
+  k.flat().forEach(c => e.append(c instanceof Node ? c : document.createTextNode(c == null ? "" : String(c))));
+  return e;
+}
+let viajes = [], conds = [];
+
+function msgErr(el, e){ el.textContent = "Error: " + (e.code || e.message || e); el.classList.remove("hide"); }
+
+$("entrar").addEventListener("click", async () => {
+  $("lerr").classList.add("hide");
+  try { await signInWithEmailAndPassword(auth, $("em").value.trim(), $("pw").value); }
+  catch(e){ msgErr($("lerr"), e); }
+});
+$("salir").addEventListener("click", () => signOut(auth));
+onAuthStateChanged(auth, u => {
+  $("login").classList.toggle("hide", !!u);
+  $("app").classList.toggle("hide", !u);
+  $("salir").classList.toggle("hide", !u);
+  if (u) cargar();
+});
+
+async function cargar(){
+  $("gerr").classList.add("hide");
+  try {
+    const [v, c] = await Promise.all([getDocs(collection(db, "viaje")), getDocs(collection(db, "conductores"))]);
+    viajes = v.docs.map(d => ({ id: d.id, ...d.data() }));
+    conds = c.docs.map(d => ({ id: d.id, ...d.data() }));
+    pintar();
+  } catch(e){ msgErr($("gerr"), e); }
+}
+$("rec").addEventListener("click", cargar);
+
+function tab(n){
+  $("v1").classList.toggle("hide", n !== 1); $("v2").classList.toggle("hide", n !== 2);
+  $("t1").classList.toggle("on", n === 1); $("t2").classList.toggle("on", n === 2);
+}
+$("t1").addEventListener("click", () => tab(1));
+$("t2").addEventListener("click", () => tab(2));
+$("df").addEventListener("change", pintar);
+$("todas").addEventListener("click", () => { $("df").value = ""; pintar(); });
+(function(){ const d = new Date(); $("df").value = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); })();
+
+function fechaTxt(f){ const d = new Date(f + "T00:00:00"); return isNaN(d) ? f : d.toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" }); }
+function horaTxt(x){ const p = String(x||"").split(":"); const n = +p[0]; if (isNaN(n)) return x; return (n > 12 ? n - 12 : n) + ":" + (p[1] || "00") + (n < 12 ? " a. m." : " p. m."); }
+
+function pintar(){
+  pintarSalidas(); pintarConds();
+}
+
+function pintarSalidas(){
+  const cont = $("salidas"); cont.replaceChildren();
+  const filtro = $("df").value;
+  const grupos = {};
+  viajes.filter(v => !filtro || v.fecha === filtro).forEach(v => {
+    const k = (v.fecha || "") + "|" + (v.hora || "");
+    (grupos[k] = grupos[k] || []).push(v);
+  });
+  const keys = Object.keys(grupos).sort();
+  if (!keys.length){ cont.append(h("div", { class: "card m" }, "No hay reservas para esta fecha.")); return; }
+  const aprobados = conds.filter(c => c.estado === "aprobado");
+  keys.forEach(k => {
+    const lista = grupos[k], f = lista[0].fecha, hr = lista[0].hora;
+    const card = h("div", { class: "card" });
+    card.append(h("div", { class: "hd" }, h("b", {}, fechaTxt(f) + " · " + horaTxt(hr)), h("span", { class: "tag" }, lista.length + "/4 puestos")));
+    const usados = lista.map(v => v.puesto), rep = usados.filter((p, i) => usados.indexOf(p) !== i);
+    if (lista.length > 4) card.append(h("div", { class: "warn" }, "⚠ Esta salida tiene más de 4 reservas."));
+    if (rep.length) card.append(h("div", { class: "warn" }, "⚠ Puesto repetido: " + [...new Set(rep)].join(", ")));
+    lista.forEach(v => card.append(h("div", { class: "pas" },
+      h("b", {}, v.nombre), " · ", v.puesto,
+      h("small", {}, (v.sube || "") + " → " + (v.baja || "")),
+      h("small", {}, "Pago: " + (v.banco || "—") + " · ref " + (v.referencia || "—") + " · " + (v.monto || "") + " Bs"),
+      h("small", {}, "Cédula " + (v.cedula || "—") + (v.telefono ? " · Tel " + v.telefono : "") + (v.conductorNombre ? " · Conductor: " + v.conductorNombre : "")))));
+    const sel = h("select", {}, h("option", { value: "" }, aprobados.length ? "Elige conductor" : "No hay conductores aprobados"));
+    aprobados.forEach(c => sel.append(h("option", { value: c.id }, c.nombre + " · " + (c.placa || ""))));
+    const actual = lista.find(v => v.conductorId); if (actual) sel.value = actual.conductorId;
+    const er = h("p", { class: "err hide" });
+    const asignar = h("button", { onclick: async () => {
+      const c = conds.find(x => x.id === sel.value);
+      if (!c){ er.textContent = "Elige un conductor."; er.classList.remove("hide"); return; }
+      try {
+        const b = writeBatch(db);
+        lista.forEach(v => b.update(doc(db, "viaje", v.id), { conductorId: c.id, conductorNombre: c.nombre, estado: "asignado" }));
+        await b.commit(); await cargar();
+      } catch(e){ msgErr(er, e); }
+    } }, "Asignar");
+    const wa = h("button", { class: "s", onclick: () => {
+      const c = conds.find(x => x.id === sel.value) || {};
+      const t = "🚐 Salida " + fechaTxt(f) + " " + horaTxt(hr) + "\n" + lista.map(v => "• " + v.nombre + " — " + v.puesto + " (" + v.sube + " → " + v.baja + ")").join("\n");
+      const num = String(c.telefono || "").replace(/\D/g, "");
+      window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(t), "_blank", "noopener");
+    } }, "Avisar por WhatsApp");
+    card.append(h("div", { class: "row", style: "margin-top:10px" }, sel, asignar, wa), er);
+    cont.append(card);
+  });
+}
+
+function pintarConds(){
+  const cont = $("conds"); cont.replaceChildren();
+  if (!conds.length){ cont.append(h("div", { class: "card m" }, "No hay conductores registrados.")); return; }
+  conds.forEach(c => {
+    const ok = c.estado === "aprobado";
+    const er = h("p", { class: "err hide" });
+    cont.append(h("div", { class: "card" },
+      h("div", { class: "hd" }, h("b", {}, c.nombre), h("span", { class: "tag" }, c.estado || "—")),
+      h("div", { class: "m" }, [c.marca, c.modelo, c.color, c.anio].filter(Boolean).join(" · ") + (c.placa ? " · Placa " + c.placa : "")),
+      h("div", { class: "m" }, "Cédula " + (c.cedula || "—") + " · Licencia " + (c.licencia || "—") + " · Experiencia " + (c.experienciaAños || "—") + " años"),
+      h("div", { class: "m" }, (c.correo || "") + (c.telefono ? " · Tel " + c.telefono : "")),
+      h("p", {}, h("button", { class: ok ? "s" : "", onclick: async () => {
+        try { await updateDoc(doc(db, "conductores", c.id), { estado: ok ? "pendiente" : "aprobado" }); await cargar(); }
+        catch(e){ msgErr(er, e); }
+      } }, ok ? "Quitar aprobación" : "Aprobar")), er));
+  });
+}
+</script>
+</body>
+</html>

@@ -1,190 +1,301 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>Bv-trip · Panel</title>
-<style>
-:root{--bg:#f1f4f2;--card:#fff;--ink:#12201a;--muted:#5b6a63;--line:#e1e7e3;--g:#176a45;--gsoft:#e2f0e8;--bad:#b3341f;--warn:#fff4d6}
-@media(prefers-color-scheme:dark){:root{--bg:#0e1612;--card:#17221c;--ink:#e9f1ec;--muted:#9fb0a6;--line:#273630;--g:#2f9a6b;--gsoft:#1d3328;--bad:#ff8f7a;--warn:#3a3213}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,sans-serif;line-height:1.4}
-.w{max-width:760px;margin:0 auto;padding:14px}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-h1{font-size:1.25rem;margin:0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
-input,select{width:100%;padding:11px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px}
-button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--g);color:#fff}
-button.s{background:var(--gsoft);color:var(--g)}
-.tabs{display:flex;gap:8px;margin-bottom:12px}
-.tabs button{flex:1;background:var(--card);color:var(--ink);border:1px solid var(--line)}
-.tabs button.on{background:var(--g);color:#fff;border-color:var(--g)}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.row>*{flex:1;min-width:120px}
-.hd{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
-.hd b{font-size:1.05rem}
-.tag{font-size:.75rem;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--gsoft);color:var(--g)}
-.pas{border-top:1px solid var(--line);padding:8px 0;font-size:.92rem}
-.pas small{display:block;color:var(--muted)}
-.warn{background:var(--warn);border-radius:10px;padding:8px 10px;margin:8px 0;font-size:.88rem;font-weight:700}
-.err{color:var(--bad);font-weight:700;margin:8px 0 0}
-.m{color:var(--muted);font-size:.9rem}
-.hide{display:none}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bv-trip · Panel de Administración</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
-<body>
-<div class="w">
-  <header><h1>🚐 Bv-trip · Panel</h1><button class="s hide" id="salir">Salir</button></header>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen">
 
-  <div class="card" id="login">
-    <h2 style="margin-top:0;font-size:1.1rem">Entrar</h2>
-    <div class="row"><input id="em" type="email" placeholder="Correo" autocomplete="username"><input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password"></div>
-    <p class="err hide" id="lerr"></p>
-    <p><button id="entrar">Entrar</button></p>
-  </div>
+  <div id="app" class="max-w-4xl mx-auto p-4">
+    <!-- Encabezado -->
+    <header class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
+      <h1 class="text-xl font-bold text-emerald-800 flex items-center gap-2">
+        🚐 Bv-trip · Panel
+      </h1>
+      <button id="btnLogout" class="hidden bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-100">
+        Salir
+      </button>
+    </header>
 
-  <div id="app" class="hide">
-    <div class="tabs"><button id="t1" class="on">Salidas</button><button id="t2">Conductores</button><button id="rec" style="flex:0 0 auto">↻</button></div>
-    <div id="v1">
-      <div class="card row"><div><label class="m" for="df">Fecha</label><input id="df" type="date"></div><div style="flex:0 0 auto;align-self:end"><button class="s" id="todas">Ver todas</button></div></div>
-      <div id="salidas"></div>
+    <!-- Pantalla de Login -->
+    <div id="loginSection" class="bg-white p-6 rounded-xl shadow-sm max-w-sm mx-auto mt-12">
+      <h2 class="text-lg font-bold mb-4 text-center">Iniciar Sesión</h2>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Correo electrónico</label>
+          <input type="email" id="email" required class="w-full border rounded-lg p-2 text-sm bg-gray-50 focus:bg-white">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Contraseña</label>
+          <input type="password" id="password" required class="w-full border rounded-lg p-2 text-sm bg-gray-50 focus:bg-white">
+        </div>
+        <button type="submit" class="w-full bg-emerald-700 text-white py-2 rounded-lg text-sm font-semibold hover:bg-emerald-800">
+          Entrar
+        </button>
+      </form>
+      <p id="loginError" class="text-red-600 text-xs mt-3 text-center hidden"></p>
     </div>
-    <div id="v2" class="hide"><div id="conds"></div></div>
-    <p class="err hide" id="gerr"></p>
+
+    <!-- Contenido Principal -->
+    <div id="mainContent" class="hidden space-y-6">
+      
+      <!-- Pestañas de Navegación -->
+      <div class="flex gap-2">
+        <button id="tabSalidas" class="flex-1 bg-emerald-800 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm">
+          Salidas
+        </button>
+        <button id="tabConductores" class="flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50">
+          Conductores
+        </button>
+        <button id="btnRefresh" class="bg-white p-2.5 rounded-xl border hover:bg-gray-50">
+          🔄
+        </button>
+      </div>
+
+      <!-- SECCIÓN SALIDAS -->
+      <div id="secSalidas" class="space-y-4">
+        <div class="bg-white p-4 rounded-xl border flex gap-2 items-center">
+          <input type="date" id="filterDate" class="border rounded-lg p-2 text-sm flex-1 bg-gray-50">
+          <button id="btnVerTodas" class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-xs font-semibold">
+            Ver todas
+          </button>
+        </div>
+
+        <div id="listaSalidas" class="space-y-3">
+          <p class="text-sm text-gray-500 text-center py-4">Cargando viajes...</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN CONDUCTORES & WALLET -->
+      <div id="secConductores" class="hidden space-y-4">
+        <div id="listaConductores" class="space-y-3">
+          <p class="text-sm text-gray-500 text-center py-4">Cargando conductores...</p>
+        </div>
+      </div>
+
+    </div>
   </div>
-</div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <script>
+    // 1. Configuración de Firebase (Tu proyecto)
+    const firebaseConfig = {
+      apiKey: "AIzaSy...", // Tu API Key actual de Firebase
+      authDomain: "bv-trip.firebaseapp.com",
+      projectId: "bv-trip",
+      storageBucket: "bv-trip.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abc123def456"
+    };
 
-const app = initializeApp({
-  apiKey: "AIzaSyBROavzajg4VH80lsQVhvDo8sRsvrY6veA",
-  authDomain: "bv-trip.firebaseapp.com",
-  projectId: "bv-trip",
-  storageBucket: "bv-trip.firebasestorage.app",
-  messagingSenderId: "668569482252",
-  appId: "1:668569482252:web:4695f65a62f0363ec22a29"
-});
-const auth = getAuth(app), db = getFirestore(app);
-const $ = id => document.getElementById(id);
-function h(t, a, ...k){
-  const e = document.createElement(t);
-  for (const x in (a||{})){ if (x === "class") e.className = a[x]; else if (x.startsWith("on")) e.addEventListener(x.slice(2), a[x]); else e.setAttribute(x, a[x]); }
-  k.flat().forEach(c => e.append(c instanceof Node ? c : document.createTextNode(c == null ? "" : String(c))));
-  return e;
-}
-let viajes = [], conds = [];
+    // Reemplaza la configuración anterior si tienes las claves exactas en tu index.html previo
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
 
-function msgErr(el, e){ el.textContent = "Error: " + (e.code || e.message || e); el.classList.remove("hide"); }
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-$("entrar").addEventListener("click", async () => {
-  $("lerr").classList.add("hide");
-  try { await signInWithEmailAndPassword(auth, $("em").value.trim(), $("pw").value); }
-  catch(e){ msgErr($("lerr"), e); }
-});
-$("salir").addEventListener("click", () => signOut(auth));
-onAuthStateChanged(auth, u => {
-  $("login").classList.toggle("hide", !!u);
-  $("app").classList.toggle("hide", !u);
-  $("salir").classList.toggle("hide", !u);
-  if (u) cargar();
-});
+    const TARIFA_POR_PASAJERO = 900; // 900 Bs. por asiento/pasajero
 
-async function cargar(){
-  $("gerr").classList.add("hide");
-  try {
-    const [v, c] = await Promise.all([getDocs(collection(db, "viaje")), getDocs(collection(db, "conductores"))]);
-    viajes = v.docs.map(d => ({ id: d.id, ...d.data() }));
-    conds = c.docs.map(d => ({ id: d.id, ...d.data() }));
-    pintar();
-  } catch(e){ msgErr($("gerr"), e); }
-}
-$("rec").addEventListener("click", cargar);
+    // Elementos DOM
+    const loginSection = document.getElementById('loginSection');
+    const mainContent = document.getElementById('mainContent');
+    const btnLogout = document.getElementById('btnLogout');
+    const loginForm = document.getElementById('loginForm');
+    const loginError = document.getElementById('loginError');
 
-function tab(n){
-  $("v1").classList.toggle("hide", n !== 1); $("v2").classList.toggle("hide", n !== 2);
-  $("t1").classList.toggle("on", n === 1); $("t2").classList.toggle("on", n === 2);
-}
-$("t1").addEventListener("click", () => tab(1));
-$("t2").addEventListener("click", () => tab(2));
-$("df").addEventListener("change", pintar);
-$("todas").addEventListener("click", () => { $("df").value = ""; pintar(); });
-(function(){ const d = new Date(); $("df").value = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); })();
+    const tabSalidas = document.getElementById('tabSalidas');
+    const tabConductores = document.getElementById('tabConductores');
+    const secSalidas = document.getElementById('secSalidas');
+    const secConductores = document.getElementById('secConductores');
 
-function fechaTxt(f){ const d = new Date(f + "T00:00:00"); return isNaN(d) ? f : d.toLocaleDateString("es-VE", { weekday: "short", day: "numeric", month: "short" }); }
-function horaTxt(x){ const p = String(x||"").split(":"); const n = +p[0]; if (isNaN(n)) return x; return (n > 12 ? n - 12 : n) + ":" + (p[1] || "00") + (n < 12 ? " a. m." : " p. m."); }
+    let viajesCache = [];
+    let conductoresCache = [];
 
-function pintar(){
-  pintarSalidas(); pintarConds();
-}
+    // Control de Autenticación
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        loginSection.classList.add('hidden');
+        mainContent.classList.remove('hidden');
+        btnLogout.classList.remove('hidden');
+        cargarDatos();
+      } else {
+        loginSection.classList.remove('hidden');
+        mainContent.classList.add('hidden');
+        btnLogout.classList.add('hidden');
+      }
+    });
 
-function pintarSalidas(){
-  const cont = $("salidas"); cont.replaceChildren();
-  const filtro = $("df").value;
-  const grupos = {};
-  viajes.filter(v => !filtro || v.fecha === filtro).forEach(v => {
-    const k = (v.fecha || "") + "|" + (v.hora || "");
-    (grupos[k] = grupos[k] || []).push(v);
-  });
-  const keys = Object.keys(grupos).sort();
-  if (!keys.length){ cont.append(h("div", { class: "card m" }, "No hay reservas para esta fecha.")); return; }
-  const aprobados = conds.filter(c => c.estado === "aprobado");
-  keys.forEach(k => {
-    const lista = grupos[k], f = lista[0].fecha, hr = lista[0].hora;
-    const card = h("div", { class: "card" });
-    card.append(h("div", { class: "hd" }, h("b", {}, fechaTxt(f) + " · " + horaTxt(hr)), h("span", { class: "tag" }, lista.length + "/4 puestos")));
-    const usados = lista.map(v => v.puesto), rep = usados.filter((p, i) => usados.indexOf(p) !== i);
-    if (lista.length > 4) card.append(h("div", { class: "warn" }, "⚠ Esta salida tiene más de 4 reservas."));
-    if (rep.length) card.append(h("div", { class: "warn" }, "⚠ Puesto repetido: " + [...new Set(rep)].join(", ")));
-    lista.forEach(v => card.append(h("div", { class: "pas" },
-      h("b", {}, v.nombre), " · ", v.puesto,
-      h("small", {}, (v.sube || "") + " → " + (v.baja || "")),
-      h("small", {}, "Pago: " + (v.banco || "—") + " · ref " + (v.referencia || "—") + " · " + (v.monto || "") + " Bs"),
-      h("small", {}, "Cédula " + (v.cedula || "—") + (v.telefono ? " · Tel " + v.telefono : "") + (v.conductorNombre ? " · Conductor: " + v.conductorNombre : "")))));
-    const sel = h("select", {}, h("option", { value: "" }, aprobados.length ? "Elige conductor" : "No hay conductores aprobados"));
-    aprobados.forEach(c => sel.append(h("option", { value: c.id }, c.nombre + " · " + (c.placa || ""))));
-    const actual = lista.find(v => v.conductorId); if (actual) sel.value = actual.conductorId;
-    const er = h("p", { class: "err hide" });
-    const asignar = h("button", { onclick: async () => {
-      const c = conds.find(x => x.id === sel.value);
-      if (!c){ er.textContent = "Elige un conductor."; er.classList.remove("hide"); return; }
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginError.classList.add('hidden');
       try {
-        const b = writeBatch(db);
-        lista.forEach(v => b.update(doc(db, "viaje", v.id), { conductorId: c.id, conductorNombre: c.nombre, estado: "asignado" }));
-        await b.commit(); await cargar();
-      } catch(e){ msgErr(er, e); }
-    } }, "Asignar");
-    const wa = h("button", { class: "s", onclick: () => {
-      const c = conds.find(x => x.id === sel.value) || {};
-      const t = "🚐 Salida " + fechaTxt(f) + " " + horaTxt(hr) + "\n" + lista.map(v => "• " + v.nombre + " — " + v.puesto + " (" + v.sube + " → " + v.baja + ")").join("\n");
-      const num = String(c.telefono || "").replace(/\D/g, "");
-      window.open("https://wa.me/" + num + "?text=" + encodeURIComponent(t), "_blank", "noopener");
-    } }, "Avisar por WhatsApp");
-    card.append(h("div", { class: "row", style: "margin-top:10px" }, sel, asignar, wa), er);
-    cont.append(card);
-  });
-}
+        await auth.signInWithEmailAndPassword(
+          document.getElementById('email').value,
+          document.getElementById('password').value
+        );
+      } catch (err) {
+        loginError.textContent = "Error: " + err.message;
+        loginError.classList.remove('hidden');
+      }
+    });
 
-function pintarConds(){
-  const cont = $("conds"); cont.replaceChildren();
-  if (!conds.length){ cont.append(h("div", { class: "card m" }, "No hay conductores registrados.")); return; }
-  conds.forEach(c => {
-    const ok = c.estado === "aprobado";
-    const er = h("p", { class: "err hide" });
-    cont.append(h("div", { class: "card" },
-      h("div", { class: "hd" }, h("b", {}, c.nombre), h("span", { class: "tag" }, c.estado || "—")),
-      h("div", { class: "m" }, [c.marca, c.modelo, c.color, c.anio].filter(Boolean).join(" · ") + (c.placa ? " · Placa " + c.placa : "")),
-      h("div", { class: "m" }, "Cédula " + (c.cedula || "—") + " · Licencia " + (c.licencia || "—") + " · Experiencia " + (c.experienciaAños || "—") + " años"),
-      h("div", { class: "m" }, (c.correo || "") + (c.telefono ? " · Tel " + c.telefono : "")),
-      h("p", {}, h("button", { class: ok ? "s" : "", onclick: async () => {
-        try { await updateDoc(doc(db, "conductores", c.id), { estado: ok ? "pendiente" : "aprobado" }); await cargar(); }
-        catch(e){ msgErr(er, e); }
-      } }, ok ? "Quitar aprobación" : "Aprobar")), er));
-  });
-}
-</script>
+    btnLogout.addEventListener('click', () => auth.signOut());
+
+    // Cambio de pestañas
+    tabSalidas.addEventListener('click', () => {
+      tabSalidas.className = "flex-1 bg-emerald-800 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm";
+      tabConductores.className = "flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50";
+      secSalidas.classList.remove('hidden');
+      secConductores.classList.add('hidden');
+    });
+
+    tabConductores.addEventListener('click', () => {
+      tabConductores.className = "flex-1 bg-emerald-800 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm";
+      tabSalidas.className = "flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50";
+      secConductores.classList.remove('hidden');
+      secSalidas.classList.add('hidden');
+    });
+
+    document.getElementById('btnRefresh').addEventListener('click', cargarDatos);
+
+    // Cargar información desde Firestore
+    async function cargarDatos() {
+      await Promise.all([cargarConductores(), cargarViajes()]);
+      renderSalidas();
+      renderConductores();
+    }
+
+    async function cargarConductores() {
+      const snap = await db.collection('conductores').get();
+      conductoresCache = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async function cargarViajes() {
+      const snap = await db.collection('viaje').get();
+      viajesCache = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    // Renderizar Salidas
+    function renderSalidas() {
+      const contenedor = document.getElementById('listaSalidas');
+      contenedor.innerHTML = '';
+
+      if (viajesCache.length === 0) {
+        contenedor.innerHTML = '<p class="text-sm text-gray-500 text-center py-4 bg-white rounded-xl border">No hay viajes registrados.</p>';
+        return;
+      }
+
+      viajesCache.forEach(v => {
+        const cond = conductoresCache.find(c => c.id === v.conductorId || c.nombre === v.conductor);
+        const pasajeros = v.pasajerosCount || (v.pasajeros ? v.pasajeros.length : 1);
+        const totalViaje = pasajeros * TARIFA_POR_PASAJERO;
+        const estado = v.estado || 'Pendiente';
+
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-xl border shadow-sm space-y-3";
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-xs px-2 py-0.5 rounded font-semibold ${estado === 'Completado' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}">${estado}</span>
+              <h3 class="font-bold text-base mt-1">${v.origen || 'Origen'} ➔ ${v.destino || 'Destino'}</h3>
+              <p class="text-xs text-gray-500">📅 ${v.fecha || 'Sin fecha'} · 🕒 ${v.hora || 'Sin hora'}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-gray-500">${pasajeros} pasajero(s)</p>
+              <p class="font-bold text-emerald-700 text-sm">${totalViaje.toLocaleString('es-VE')} Bs.</p>
+            </div>
+          </div>
+
+          <div class="border-t pt-2 flex flex-wrap justify-between items-center text-xs gap-2">
+            <div>
+              <span class="text-gray-500">Conductor:</span> 
+              <strong>${cond ? cond.nombre : (v.conductor || 'Sin asignar')}</strong>
+            </div>
+            <div class="flex gap-2">
+              ${estado !== 'Completado' ? `
+                <button onclick="completarViaje('${v.id}')" class="bg-emerald-700 text-white px-3 py-1 rounded-lg hover:bg-emerald-800">
+                  ✓ Finalizar
+                </button>
+              ` : ''}
+              ${cond && cond.telefono ? `
+                <a href="https://wa.me/${cond.telefono}?text=Hola%20${encodeURIComponent(cond.nombre)},\%20tienes\%20un\%20viaje\%20asignado\%20para\%20${encodeURIComponent(v.fecha)}." target="_blank" class="bg-green-500 text-white px-3 py-1 rounded-lg flex items-center gap-1 hover:bg-green-600">
+                  Avisar WS
+                </a>
+              ` : ''}
+            </div>
+          </div>
+        `;
+        contenedor.appendChild(card);
+      });
+    }
+
+    // Renderizar Conductores y sus Saldos acumulados
+    function renderConductores() {
+      const contenedor = document.getElementById('listaConductores');
+      contenedor.innerHTML = '';
+
+      if (conductoresCache.length === 0) {
+        contenedor.innerHTML = '<p class="text-sm text-gray-500 text-center py-4 bg-white rounded-xl border">No hay conductores registrados.</p>';
+        return;
+      }
+
+      conductoresCache.forEach(c => {
+        // Filtrar viajes completados de este conductor
+        const viajesDelConductor = viajesCache.filter(v => 
+          (v.conductorId === c.id || v.conductor === c.nombre) && v.estado === 'Completado'
+        );
+
+        let totalPasajeros = 0;
+        viajesDelConductor.forEach(v => {
+          totalPasajeros += (v.pasajerosCount || (v.pasajeros ? v.pasajeros.length : 1));
+        });
+
+        const acumuladoBs = totalPasajeros * TARIFA_POR_PASAJERO;
+
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-xl border shadow-sm space-y-3";
+        card.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="font-bold text-base">${c.nombre || 'Conductor'}</h3>
+              <p class="text-xs text-gray-500">📱 ${c.telefono || 'Sin teléfono'} · 🚗 ${c.vehiculo || 'Vehículo'}</p>
+            </div>
+            <span class="text-xs px-2 py-1 rounded ${c.aprobado ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}">
+              ${c.aprobado ? 'Aprobado' : 'Pendiente'}
+            </span>
+          </div>
+
+          <div class="bg-emerald-50 p-3 rounded-lg flex justify-between items-center text-xs">
+            <div>
+              <p class="text-gray-600">Viajes completados: <strong>${viajesDelConductor.length}</strong></p>
+              <p class="text-gray-600">Pasajeros llevados: <strong>${totalPasajeros}</strong></p>
+            </div>
+            <div class="text-right">
+              <p class="text-gray-500">Wallet / Ganancia</p>
+              <p class="text-base font-extrabold text-emerald-800">${acumuladoBs.toLocaleString('es-VE')} Bs.</p>
+            </div>
+          </div>
+        `;
+        contenedor.appendChild(card);
+      });
+    }
+
+    // Función para marcar un viaje como completado y sumar a la Wallet
+    async function completarViaje(viajeId) {
+      try {
+        await db.collection('viaje').doc(viajeId).update({ estado: 'Completado' });
+        await cargarDatos();
+      } catch (err) {
+        alert("Error al actualizar estado del viaje: " + err.message);
+      }
+    }
+  </script>
 </body>
 </html>

@@ -51,6 +51,14 @@
       </div>
 
       <div id="secConductores" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border space-y-2">
+          <p class="text-xs text-gray-500">Período para el wallet y el estado de cuenta</p>
+          <div class="flex flex-wrap gap-2 items-center">
+            <input type="date" id="rangoDesde" class="border rounded-lg p-2 text-sm bg-gray-50 flex-1 min-w-[130px]">
+            <input type="date" id="rangoHasta" class="border rounded-lg p-2 text-sm bg-gray-50 flex-1 min-w-[130px]">
+            <button id="btnSemana" class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-xs font-semibold">Esta semana</button>
+          </div>
+        </div>
         <div id="listaConductores" class="space-y-3">
           <p class="text-sm text-gray-500 text-center py-4">Cargando conductores...</p>
         </div>
@@ -148,6 +156,23 @@
     $('btnRefresh').addEventListener('click', cargarDatos);
     $('filterDate').addEventListener('change', renderSalidas);
     $('btnVerTodas').addEventListener('click', () => { $('filterDate').value = ''; renderSalidas(); });
+
+    // Semana actual (lunes a domingo) como período por defecto
+    function isoLocal(d) {
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function fijarSemanaActual() {
+      const hoy = new Date();
+      const dif = (hoy.getDay() + 6) % 7; // lunes = 0
+      const lun = new Date(hoy); lun.setDate(hoy.getDate() - dif);
+      const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+      $('rangoDesde').value = isoLocal(lun);
+      $('rangoHasta').value = isoLocal(dom);
+    }
+    fijarSemanaActual();
+    $('btnSemana').addEventListener('click', () => { fijarSemanaActual(); renderConductores(); });
+    $('rangoDesde').addEventListener('change', renderConductores);
+    $('rangoHasta').addEventListener('change', renderConductores);
 
     // ---------- Datos ----------
     async function cargarDatos() {
@@ -278,9 +303,7 @@
       }
 
       conductoresCache.forEach(c => {
-        const suyos = viajesCache.filter(v =>
-          estaCompletado(v) && (v.conductorId === c.id || (!v.conductorId && c.nombre && nombreConductor(v) === c.nombre))
-        );
+        const suyos = viajesDeConductor(c);
         const totalPas = suyos.reduce((s, v) => s + pasajerosDe(v), 0);
         const acumulado = suyos.reduce((s, v) => s + (typeof v.monto === 'number' ? v.monto : pasajerosDe(v) * TARIFA_POR_PASAJERO), 0);
         const aprobado = estaAprobado(c);
@@ -309,7 +332,8 @@
             </div>
           </div>
 
-          <div class="flex gap-2 text-xs">
+          <div class="flex flex-wrap gap-2 text-xs">
+            <button onclick="estadoCuenta('${esc(c.id)}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">📄 Estado de cuenta</button>
             ${aprobado
               ? `<button onclick="cambiarEstadoConductor('${esc(c.id)}','pendiente')" class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-300">Suspender</button>`
               : `<button onclick="cambiarEstadoConductor('${esc(c.id)}','aprobado')" class="bg-emerald-700 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-800">Aprobar</button>`}
@@ -317,6 +341,79 @@
         `;
         cont.appendChild(card);
       });
+    }
+
+    function viajesDeConductor(c) {
+      const d = $('rangoDesde').value, h = $('rangoHasta').value;
+      return viajesCache
+        .filter(v => estaCompletado(v) && (v.conductorId === c.id || (!v.conductorId && c.nombre && nombreConductor(v) === c.nombre)))
+        .filter(v => (!d || (v.fecha && v.fecha >= d)) && (!h || (v.fecha && v.fecha <= h)))
+        .sort((a, b) => ((a.fecha || '') + (a.hora || '')).localeCompare((b.fecha || '') + (b.hora || '')));
+    }
+    const fmtFecha = iso => iso ? iso.split('-').reverse().join('/') : '—';
+
+    // Abre un reporte imprimible; en el diálogo de impresión elige "Guardar como PDF"
+    function estadoCuenta(id) {
+      const c = conductoresCache.find(x => x.id === id);
+      if (!c) return;
+      const lista = viajesDeConductor(c);
+      const monto = v => (typeof v.monto === 'number' ? v.monto : pasajerosDe(v) * TARIFA_POR_PASAJERO);
+      const total = lista.reduce((s, v) => s + monto(v), 0);
+      const pas = lista.reduce((s, v) => s + pasajerosDe(v), 0);
+      const vehiculo = [c.marca, c.modelo, c.color, c.placa].filter(Boolean).join(' ') || '—';
+      const desde = $('rangoDesde').value, hasta = $('rangoHasta').value;
+      const periodo = (desde || hasta) ? `${fmtFecha(desde)} al ${fmtFecha(hasta)}` : 'Todos los viajes';
+
+      const filas = lista.length ? lista.map(v => `
+        <tr>
+          <td>${esc(fmtFecha(v.fecha))}</td>
+          <td>${esc(v.hora || '')}</td>
+          <td>${esc(v.sube || v.origen || '')} → ${esc(v.baja || v.destino || '')}</td>
+          <td>${esc(v.nombre || '')}</td>
+          <td>${esc(v.puesto || '')}</td>
+          <td class="r">${monto(v).toLocaleString('es-VE')}</td>
+        </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:#666;padding:18px">Sin viajes completados en este período.</td></tr>';
+
+      const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+        <title>Estado de cuenta - ${esc(c.nombre || 'Conductor')}</title>
+        <style>
+          body{font-family:Arial,Helvetica,sans-serif;color:#12201a;margin:32px;font-size:13px}
+          h1{font-size:20px;margin:0;color:#176a45} h2{font-size:15px;margin:22px 0 6px}
+          .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #176a45;padding-bottom:10px}
+          .info p{margin:3px 0} table{width:100%;border-collapse:collapse;margin-top:8px}
+          th,td{border:1px solid #ccd5cf;padding:6px 8px;text-align:left} th{background:#e8f3ed}
+          .r{text-align:right} .tot td{font-weight:bold;background:#f3f7f5}
+          .firmas{display:flex;gap:40px;margin-top:60px}
+          .firmas div{flex:1;border-top:1px solid #333;text-align:center;padding-top:4px;font-size:12px}
+          .nota{margin-top:20px;font-size:11px;color:#666}
+          @media print{body{margin:14mm}}
+        </style></head><body>
+        <div class="top">
+          <div><h1>🚐 Bv-trip · Estado de cuenta</h1><div>Transporte Bosque Valle · Tazón, Caracas</div></div>
+          <div style="text-align:right">Emitido: ${new Date().toLocaleDateString('es-VE')}<br>Período: <b>${periodo}</b></div>
+        </div>
+        <div class="info">
+          <h2>Conductor</h2>
+          <p><b>Nombre:</b> ${esc(c.nombre || '—')}</p>
+          <p><b>Cédula:</b> ${esc(c.cedula || '—')} &nbsp; <b>Teléfono:</b> ${esc(c.telefono || '—')}</p>
+          <p><b>Vehículo:</b> ${esc(vehiculo)}</p>
+        </div>
+        <h2>Detalle de viajes</h2>
+        <table>
+          <thead><tr><th>Fecha</th><th>Hora</th><th>Ruta</th><th>Pasajero</th><th>Puesto</th><th class="r">Monto (Bs.)</th></tr></thead>
+          <tbody>${filas}
+            <tr class="tot"><td colspan="5">Total: ${lista.length} viaje(s) · ${pas} pasajero(s)</td><td class="r">${total.toLocaleString('es-VE')}</td></tr>
+          </tbody>
+        </table>
+        <div class="firmas"><div>Firma Bv-trip</div><div>Firma del conductor</div></div>
+        <p class="nota">Reporte generado desde el panel de administración de Bv-trip.</p>
+        </body></html>`;
+
+      const w = window.open('', '_blank');
+      if (!w) return alert('El navegador bloqueó la ventana. Permite las ventanas emergentes para este sitio e inténtalo de nuevo.');
+      w.document.open(); w.document.write(html); w.document.close();
+      w.focus();
+      setTimeout(() => w.print(), 400);
     }
 
     async function cambiarEstadoConductor(id, estado) {

@@ -86,7 +86,6 @@
     let conductoresCache = [];
 
     // ---------- Utilidades ----------
-    // Evita que texto escrito por pasajeros/conductores rompa o inyecte HTML
     function esc(s) {
       return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
@@ -102,7 +101,6 @@
     function nombreConductor(v) {
       return v.conductorNombre || v.conductor || '';
     }
-    // Busca el conductor del viaje SOLO si hay un dato real con qué comparar
     function buscarConductor(v) {
       if (v.conductorId) {
         const porId = conductoresCache.find(c => c.id === v.conductorId);
@@ -116,17 +114,31 @@
       return v.pasajerosCount || (Array.isArray(v.pasajeros) ? v.pasajeros.length : 1);
     }
 
+    // ---------- Función para Pedir Opinión al Pasajero vía WhatsApp ----------
+    function enviarFeedbackPasajero(telefonoPasajero, nombrePasajero, nombreConductor) {
+      let telefonoLimpiado = telWA(telefonoPasajero);
+      if (!telefonoLimpiado) {
+        return alert('Este pasajero no tiene un número de teléfono válido registrado.');
+      }
+      
+      let mensaje = `Hola ${nombrePasajero || 'Vecino'}, ¡esperamos que hayas tenido una excelente experiencia con Bv-trip! 🚐✨\n\n` +
+                    `Para nosotros en Residencia Bosque Valle es muy importante seguir mejorando. ` +
+                    `¿Nos compartirías brevemente tu opinión sobre tu viaje con el conductor ${nombreConductor || 'asignado'}?\n\n` +
+                    `¡Agradecemos mucho tus comentarios!`;
+                    
+      let mensajeCodificado = encodeURIComponent(mensaje);
+      window.open(`https://wa.me/${telefonoLimpiado}?text=${mensajeCodificado}`, '_blank');
+    }
+
     // ---------- Autenticación ----------
     auth.onAuthStateChanged(user => {
       if (user) {
         $('loginSection').classList.add('hidden');
-        $('mainContent').classList.remove('hidden');
-        $('btnLogout').classList.remove('hidden');
+        $('mainContent').classList.remove('hidden');$('btnLogout').classList.remove('hidden');
         cargarDatos();
       } else {
         $('loginSection').classList.remove('hidden');
-        $('mainContent').classList.add('hidden');
-        $('btnLogout').classList.add('hidden');
+        $('mainContent').classList.add('hidden');$('btnLogout').classList.add('hidden');
       }
     });
 
@@ -147,32 +159,28 @@
     const off = "flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50";
     $('tabSalidas').addEventListener('click', () => {
       $('tabSalidas').className = on; $('tabConductores').className = off;
-      $('secSalidas').classList.remove('hidden'); $('secConductores').classList.add('hidden');
+      $('secSalidas').classList.remove('hidden');$('secConductores').classList.add('hidden');
     });
     $('tabConductores').addEventListener('click', () => {
       $('tabConductores').className = on; $('tabSalidas').className = off;
-      $('secConductores').classList.remove('hidden'); $('secSalidas').classList.add('hidden');
+      $('secConductores').classList.remove('hidden');$('secSalidas').classList.add('hidden');
     });
-    $('btnRefresh').addEventListener('click', cargarDatos);
-    $('filterDate').addEventListener('change', renderSalidas);
-    $('btnVerTodas').addEventListener('click', () => { $('filterDate').value = ''; renderSalidas(); });
+    $('btnRefresh').addEventListener('click', cargarDatos);$('filterDate').addEventListener('change', renderSalidas);
+    $('btnVerTodas').addEventListener('click', () => {$('filterDate').value = ''; renderSalidas(); });
 
-    // Semana actual (lunes a domingo) como período por defecto
     function isoLocal(d) {
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
     function fijarSemanaActual() {
       const hoy = new Date();
-      const dif = (hoy.getDay() + 6) % 7; // lunes = 0
+      const dif = (hoy.getDay() + 6) % 7;
       const lun = new Date(hoy); lun.setDate(hoy.getDate() - dif);
       const dom = new Date(lun); dom.setDate(lun.getDate() + 6);
-      $('rangoDesde').value = isoLocal(lun);
-      $('rangoHasta').value = isoLocal(dom);
+      $('rangoDesde').value = isoLocal(lun);$('rangoHasta').value = isoLocal(dom);
     }
     fijarSemanaActual();
     $('btnSemana').addEventListener('click', () => { fijarSemanaActual(); renderConductores(); });
-    $('rangoDesde').addEventListener('change', renderConductores);
-    $('rangoHasta').addEventListener('change', renderConductores);
+    $('rangoDesde').addEventListener('change', renderConductores);$('rangoHasta').addEventListener('change', renderConductores);
 
     // ---------- Datos ----------
     async function cargarDatos() {
@@ -253,7 +261,10 @@
                 <button onclick="completarViaje('${esc(v.id)}')" class="bg-emerald-700 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-800">✓ Finalizar</button>
               ` : ''}
               ${tel ? `
-                <a href="https://wa.me/${tel}?text=${encodeURIComponent('Hola ' + cond.nombre + ', tienes un viaje asignado para el ' + (v.fecha || '') + ' a las ' + (v.hora || '') + '.')}" target="_blank" rel="noopener" class="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600">Avisar WS</a>
+                <a href="https://wa.me/${tel}?text=${encodeURIComponent('Hola ' + cond.nombre + ', tienes un viaje asignado para el ' + (v.fecha || '') + ' a las ' + (v.hora || '') + '.')}" target="_blank" rel="noopener" class="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600">Avisar Chofer</a>
+              ` : ''}
+              ${completado && v.telefono ? `
+                <button onclick="enviarFeedbackPasajero('${esc(v.telefono)}', '${esc(v.nombre)}', '${esc(nomCond)}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 flex items-center gap-1">💬 Pedir Opinión</button>
               ` : ''}
             </div>
           </div>
@@ -344,7 +355,7 @@
     }
 
     function viajesDeConductor(c) {
-      const d = $('rangoDesde').value, h = $('rangoHasta').value;
+      const d = $('rangoDesde').value, h =$('rangoHasta').value;
       return viajesCache
         .filter(v => estaCompletado(v) && (v.conductorId === c.id || (!v.conductorId && c.nombre && nombreConductor(v) === c.nombre)))
         .filter(v => (!d || (v.fecha && v.fecha >= d)) && (!h || (v.fecha && v.fecha <= h)))
@@ -352,7 +363,6 @@
     }
     const fmtFecha = iso => iso ? iso.split('-').reverse().join('/') : '—';
 
-    // Abre un reporte imprimible; en el diálogo de impresión elige "Guardar como PDF"
     function estadoCuenta(id) {
       const c = conductoresCache.find(x => x.id === id);
       if (!c) return;
@@ -361,7 +371,7 @@
       const total = lista.reduce((s, v) => s + monto(v), 0);
       const pas = lista.reduce((s, v) => s + pasajerosDe(v), 0);
       const vehiculo = [c.marca, c.modelo, c.color, c.placa].filter(Boolean).join(' ') || '—';
-      const desde = $('rangoDesde').value, hasta = $('rangoHasta').value;
+      const desde = $('rangoDesde').value, hasta =$('rangoHasta').value;
       const periodo = (desde || hasta) ? `${fmtFecha(desde)} al ${fmtFecha(hasta)}` : 'Todos los viajes';
 
       const filas = lista.length ? lista.map(v => `

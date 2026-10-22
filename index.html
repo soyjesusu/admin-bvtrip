@@ -37,9 +37,11 @@
       <div class="flex gap-2">
         <button id="tabSalidas" class="flex-1 bg-emerald-800 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm">Salidas</button>
         <button id="tabConductores" class="flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50">Conductores</button>
+        <button id="tabEmprendedores" class="flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50">Emprendedores</button>
         <button id="btnRefresh" class="bg-white p-2.5 rounded-xl border hover:bg-gray-50">🔄</button>
       </div>
 
+      <!-- SECCIÓN SALIDAS -->
       <div id="secSalidas" class="space-y-4">
         <div class="bg-white p-4 rounded-xl border flex gap-2 items-center">
           <input type="date" id="filterDate" class="border rounded-lg p-2 text-sm flex-1 bg-gray-50">
@@ -50,6 +52,7 @@
         </div>
       </div>
 
+      <!-- SECCIÓN CONDUCTORES -->
       <div id="secConductores" class="hidden space-y-4">
         <div class="bg-white p-4 rounded-xl border space-y-2">
           <p class="text-xs text-gray-500">Período para el wallet y el estado de cuenta</p>
@@ -61,6 +64,24 @@
         </div>
         <div id="listaConductores" class="space-y-3">
           <p class="text-sm text-gray-500 text-center py-4">Cargando conductores...</p>
+        </div>
+      </div>
+
+      <!-- SECCIÓN EMPRENDEDORES -->
+      <div id="secEmprendedores" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border space-y-3">
+          <h3 class="font-bold text-sm text-emerald-800">➕ Nuevo Emprendedor</h3>
+          <form id="formNuevoEmprendedor" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <input type="text" id="empNombre" placeholder="Nombre del negocio" required class="border rounded-lg p-2 bg-gray-50">
+            <input type="text" id="empCategoria" placeholder="Categoría (ej. Comida, Servicios)" required class="border rounded-lg p-2 bg-gray-50">
+            <input type="text" id="empTelefono" placeholder="Teléfono / WhatsApp" required class="border rounded-lg p-2 bg-gray-50">
+            <input type="text" id="empDescripcion" placeholder="Descripción breve" required class="border rounded-lg p-2 bg-gray-50 sm:col-span-2">
+            <button type="submit" class="bg-emerald-700 text-white font-semibold py-2 rounded-lg sm:col-span-2 hover:bg-emerald-800">Registrar Emprendedor</button>
+          </form>
+        </div>
+
+        <div id="listaEmprendedores" class="space-y-3">
+          <p class="text-sm text-gray-500 text-center py-4">Cargando emprendedores...</p>
         </div>
       </div>
     </div>
@@ -84,6 +105,7 @@
     const $ = id => document.getElementById(id);
     let viajesCache = [];
     let conductoresCache = [];
+    let emprendedoresCache = [];
 
     // ---------- Utilidades ----------
     function esc(s) {
@@ -114,22 +136,6 @@
       return v.pasajerosCount || (Array.isArray(v.pasajeros) ? v.pasajeros.length : 1);
     }
 
-    // ---------- Función para Pedir Opinión al Pasajero vía WhatsApp ----------
-    function enviarFeedbackPasajero(telefonoPasajero, nombrePasajero, nombreConductor) {
-      let telefonoLimpiado = telWA(telefonoPasajero);
-      if (!telefonoLimpiado) {
-        return alert('Este pasajero no tiene un número de teléfono válido registrado.');
-      }
-      
-      let mensaje = `Hola ${nombrePasajero || 'Vecino'}, ¡esperamos que hayas tenido una excelente experiencia con Bv-trip! 🚐✨\n\n` +
-                    `Para nosotros en Residencia Bosque Valle es muy importante seguir mejorando. ` +
-                    `¿Nos compartirías brevemente tu opinión sobre tu viaje con el conductor ${nombreConductor || 'asignado'}?\n\n` +
-                    `¡Agradecemos mucho tus comentarios!`;
-                    
-      let mensajeCodificado = encodeURIComponent(mensaje);
-      window.open(`https://wa.me/${telefonoLimpiado}?text=${mensajeCodificado}`, '_blank');
-    }
-
     // ---------- Autenticación ----------
     auth.onAuthStateChanged(user => {
       if (user) {
@@ -157,14 +163,31 @@
     // ---------- Pestañas ----------
     const on = "flex-1 bg-emerald-800 text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm";
     const off = "flex-1 bg-white text-gray-700 py-2.5 rounded-xl text-sm font-semibold border hover:bg-gray-50";
+    
+    function resetTabs() {
+      $('tabSalidas').className = off;
+      $('tabConductores').className = off;
+      $('tabEmprendedores').className = off;
+      $('secSalidas').classList.add('hidden');
+      $('secConductores').classList.add('hidden');$('secEmprendedores').classList.add('hidden');
+    }
+
     $('tabSalidas').addEventListener('click', () => {
-      $('tabSalidas').className = on; $('tabConductores').className = off;
-      $('secSalidas').classList.remove('hidden');$('secConductores').classList.add('hidden');
+      resetTabs();
+      $('tabSalidas').className = on;
+      $('secSalidas').classList.remove('hidden');
     });
     $('tabConductores').addEventListener('click', () => {
-      $('tabConductores').className = on; $('tabSalidas').className = off;
-      $('secConductores').classList.remove('hidden');$('secSalidas').classList.add('hidden');
+      resetTabs();
+      $('tabConductores').className = on;
+      $('secConductores').classList.remove('hidden');
     });
+    $('tabEmprendedores').addEventListener('click', () => {
+      resetTabs();
+      $('tabEmprendedores').className = on;
+      $('secEmprendedores').classList.remove('hidden');
+    });
+
     $('btnRefresh').addEventListener('click', cargarDatos);$('filterDate').addEventListener('change', renderSalidas);
     $('btnVerTodas').addEventListener('click', () => {$('filterDate').value = ''; renderSalidas(); });
 
@@ -185,14 +208,18 @@
     // ---------- Datos ----------
     async function cargarDatos() {
       try {
-        const [cSnap, vSnap] = await Promise.all([
+        const [cSnap, vSnap, eSnap] = await Promise.all([
           db.collection('conductores').get(),
-          db.collection('viaje').get()
+          db.collection('viaje').get(),
+          db.collection('emprendedores').get()
         ]);
         conductoresCache = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         viajesCache = vSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        emprendedoresCache = eSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
         renderSalidas();
         renderConductores();
+        renderEmprendedores();
       } catch (err) {
         console.error(err);
         $('listaSalidas').innerHTML = `<p class="text-sm text-red-600 text-center py-4 bg-white rounded-xl border">Error al cargar: ${esc(err.message)}</p>`;
@@ -261,10 +288,7 @@
                 <button onclick="completarViaje('${esc(v.id)}')" class="bg-emerald-700 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-800">✓ Finalizar</button>
               ` : ''}
               ${tel ? `
-                <a href="https://wa.me/${tel}?text=${encodeURIComponent('Hola ' + cond.nombre + ', tienes un viaje asignado para el ' + (v.fecha || '') + ' a las ' + (v.hora || '') + '.')}" target="_blank" rel="noopener" class="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600">Avisar Chofer</a>
-              ` : ''}
-              ${completado && v.telefono ? `
-                <button onclick="enviarFeedbackPasajero('${esc(v.telefono)}', '${esc(v.nombre)}', '${esc(nomCond)}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 flex items-center gap-1">💬 Pedir Opinión</button>
+                <a href="https://wa.me/${tel}?text=${encodeURIComponent('Hola ' + cond.nombre + ', tienes un viaje asignado para el ' + (v.fecha || '') + ' a las ' + (v.hora || '') + '.')}" target="_blank" rel="noopener" class="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600">Avisar WS</a>
               ` : ''}
             </div>
           </div>
@@ -432,6 +456,86 @@
         await cargarDatos();
       } catch (err) {
         alert('Error al cambiar el estado: ' + err.message);
+      }
+    }
+
+    // ---------- Emprendedores ----------
+    function renderEmprendedores() {
+      const cont = $('listaEmprendedores');
+      cont.innerHTML = '';
+
+      if (emprendedoresCache.length === 0) {
+        cont.innerHTML = '<p class="text-sm text-gray-500 text-center py-4 bg-white rounded-xl border">No hay emprendedores registrados.</p>';
+        return;
+      }
+
+      const limiteGracia = "2026-12-31";
+
+      emprendedoresCache.forEach(e => {
+        const activo = e.activo === true;
+        const tel = telWA(e.telefono);
+        const fechaReg = e.fechaRegistro || '—';
+        const enGracia = fechaReg <= limiteGracia;
+
+        const card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-xl border shadow-sm space-y-3";
+        card.innerHTML = `
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-base">${esc(e.nombre || 'Sin nombre')}</h3>
+                <span class="text-[10px] px-2 py-0.5 rounded font-semibold ${activo ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+                  ${activo ? 'Visible en App' : 'Oculto'}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 font-medium mt-0.5">🏷️ ${esc(e.categoria || 'General')} · 📱 ${esc(e.telefono || 'Sin teléfono')}</p>
+              <p class="text-xs text-gray-600 mt-1">${esc(e.descripcion || 'Sin descripción')}</p>
+            </div>
+            <span class="text-[11px] px-2 py-1 rounded whitespace-nowrap font-semibold ${enGracia ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
+              ${enGracia ? '🎁 Período Gracia' : '💳 Cuota $2/mes'}
+            </span>
+          </div>
+
+          <div class="border-t pt-2 flex flex-wrap justify-between items-center gap-2 text-xs">
+            <span class="text-gray-400">Registrado: ${esc(fmtFecha(fechaReg))}</span>
+            <div class="flex gap-2">
+              ${tel ? `<a href="https://wa.me/${tel}" target="_blank" rel="noopener" class="bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 font-semibold">WhatsApp</a>` : ''}
+              <button onclick="toggleEstadoEmprendedor('${esc(e.id)}', ${!activo})" class="${activo ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-700 hover:bg-emerald-800'} text-white px-3 py-1.5 rounded-lg font-semibold">
+                ${activo ? 'Desactivar' : 'Activar'}
+              </button>
+            </div>
+          </div>
+        `;
+        cont.appendChild(card);
+      });
+    }
+
+    $('formNuevoEmprendedor').addEventListener('submit', async (evt) => {
+      evt.preventDefault();
+      const nuevo = {
+        nombre: $('empNombre').value.trim(),
+        categoria: $('empCategoria').value.trim(),
+        telefono: $('empTelefono').value.trim(),
+        descripcion: $('empDescripcion').value.trim(),
+        activo: true,
+        fechaRegistro: isoLocal(new Date())
+      };
+
+      try {
+        await db.collection('emprendedores').add(nuevo);
+        $('formNuevoEmprendedor').reset();
+        await cargarDatos();
+      } catch (err) {
+        alert('Error al guardar el emprendedor: ' + err.message);
+      }
+    });
+
+    async function toggleEstadoEmprendedor(id, nuevoEstado) {
+      try {
+        await db.collection('emprendedores').doc(id).update({ activo: nuevoEstado });
+        await cargarDatos();
+      } catch (err) {
+        alert('Error al actualizar el estado: ' + err.message);
       }
     }
   </script>
